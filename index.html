@@ -734,16 +734,19 @@
       function setLocal(n)    { try { localStorage.setItem(LS_KEY, n); } catch(e) {} }
       function currentTotal() { return BASE + getLocal(); }
 
-      /* Animate display from `from` → `to` over `dur` ms — no await, pure RAF */
+      /* Animate display from `from` → `to` over `dur` ms via setInterval
+         (avoids RAF contention with the starfield canvas loop) */
       function animateTo(from, to, dur) {
-        let s = null;
-        (function step(ts) {
-          if (!s) s = ts;
-          const p = Math.min((ts - s) / dur, 1);
+        const TICK  = 16;                     /* ~60 fps */
+        const steps = Math.ceil(dur / TICK);
+        let   i     = 0;
+        if (el) el.textContent = fmt(from);
+        const timer = setInterval(function () {
+          i++;
+          const p = Math.min(i / steps, 1);
           if (el) el.textContent = fmt(from + easeOut(p) * (to - from));
-          if (p < 1) requestAnimationFrame(step);
-          else if (el) el.textContent = fmt(to);
-        })(performance.now());
+          if (p >= 1) clearInterval(timer);
+        }, TICK);
       }
 
       /* Page load — instant animation, zero network dependency */
