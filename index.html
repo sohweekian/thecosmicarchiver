@@ -667,7 +667,7 @@
             <span>Archived&nbsp;&nbsp;${escHtml(r.dateDisplay)}</span>
           </div>
 
-          <a class="download-btn"
+          <a class="download-btn dl-tracked"
              href="${escHtml(r.file)}"
              download
              title="Download ${escHtml(r.title)}">
@@ -706,35 +706,75 @@
     renderReports();
 
     /* ══════════════════════════════════════════════════════════════════════════
-       DOWNLOAD COUNTER — count-up animation to target
+       LIVE DOWNLOAD COUNTER
+       Backend: CountAPI (api.countapi.xyz) — free, no-auth hit counter.
+       Display  = BASE_OFFSET + api_value
+       BASE_OFFSET seeds the counter at 28,000 so real downloads add on top.
        ══════════════════════════════════════════════════════════════════════════ */
-    (function () {
-      const TARGET   = 28000;
-      const DURATION = 2200;   // ms
+    const COUNTER = (function () {
+      const API      = 'https://api.countapi.xyz';
+      const NS       = 'thecosmicarchiver';
+      const KEY      = 'downloads';
+      const BASE     = 28000;
       const el       = document.getElementById('dl-count');
 
-      function easeOutExpo(t) {
+      function fmt(n) {
+        return Math.round(n).toLocaleString('en-US');
+      }
+
+      function easeOut(t) {
         return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
       }
 
-      function formatNum(n) {
-        return Math.floor(n).toLocaleString('en-US');
+      /* Animate the display from `from` to `to` over `dur` ms */
+      function animateTo(from, to, dur) {
+        let startTs = null;
+        function step(ts) {
+          if (!startTs) startTs = ts;
+          const p = Math.min((ts - startTs) / dur, 1);
+          if (el) el.textContent = fmt(from + easeOut(p) * (to - from));
+          if (p < 1) requestAnimationFrame(step);
+          else if (el) el.textContent = fmt(to);
+        }
+        requestAnimationFrame(step);
       }
 
-      let start = null;
-
-      function step(ts) {
-        if (!start) start = ts;
-        const elapsed  = ts - start;
-        const progress = Math.min(elapsed / DURATION, 1);
-        el.textContent = formatNum(easeOutExpo(progress) * TARGET);
-        if (progress < 1) requestAnimationFrame(step);
-        else el.textContent = formatNum(TARGET);
+      /* On page load — fetch current API value, animate from 0 to BASE+api */
+      async function load() {
+        try {
+          const r = await fetch(`${API}/get/${NS}/${KEY}`);
+          const d = await r.json();
+          const api = typeof d.value === 'number' ? d.value : 0;
+          animateTo(0, BASE + api, 2200);
+        } catch {
+          animateTo(0, BASE, 2200);
+        }
       }
 
-      // Delay slightly so page renders first
-      setTimeout(() => requestAnimationFrame(step), 400);
+      /* On download click — increment API, animate +1 on the display */
+      async function hit() {
+        try {
+          const r = await fetch(`${API}/hit/${NS}/${KEY}`);
+          const d = await r.json();
+          const api = typeof d.value === 'number' ? d.value : 0;
+          const newTotal = BASE + api;
+          /* Read current display value and tick up to new total */
+          const current = parseInt((el ? el.textContent : '').replace(/,/g, '')) || newTotal - 1;
+          animateTo(current, newTotal, 400);
+        } catch { /* API down — display unchanged, download still proceeds */ }
+      }
+
+      return { load, hit };
     })();
+
+    /* Attach click listeners to all tracked download buttons */
+    document.addEventListener('click', function (e) {
+      const btn = e.target.closest('.dl-tracked');
+      if (btn) COUNTER.hit();
+    });
+
+    /* Init counter on load */
+    setTimeout(() => COUNTER.load(), 350);
   </script>
 </body>
 </html>
