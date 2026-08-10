@@ -380,6 +380,106 @@
     .report-card.visible:hover {
       transform: translateY(-4px);
     }
+
+    /* ── Downloads Widget ────────────────────────────────────────────────────── */
+    .stats-bar {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: center;
+      padding: 0 24px 52px;
+    }
+
+    .downloads-widget {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: linear-gradient(135deg,
+        rgba(0, 180, 216, 0.07),
+        rgba(124, 58, 237, 0.06));
+      border: 1px solid rgba(0, 180, 216, 0.22);
+      border-radius: 12px;
+      padding: 20px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle inner glow sweep */
+    .downloads-widget::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(0, 212, 255, 0.04) 50%,
+        transparent 100%);
+      animation: sweep 4s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes sweep {
+      0%, 100% { transform: translateX(-100%); }
+      50%       { transform: translateX(100%); }
+    }
+
+    .widget-icon {
+      font-size: 1.6rem;
+      line-height: 1;
+      opacity: 0.85;
+      flex-shrink: 0;
+    }
+
+    .widget-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .widget-count {
+      font-family: 'Courier New', monospace;
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-shadow: 0 0 18px rgba(0, 212, 255, 0.45);
+      letter-spacing: 0.06em;
+      line-height: 1;
+    }
+
+    .widget-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .widget-divider {
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(180deg, transparent, var(--border), transparent);
+      flex-shrink: 0;
+    }
+
+    .widget-sub {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .widget-sub-item {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    .widget-sub-item span {
+      color: rgba(124, 58, 237, 0.9);
+      font-weight: 600;
+    }
+
+    @media (max-width: 480px) {
+      .downloads-widget { padding: 16px 24px; gap: 16px; }
+      .widget-divider, .widget-sub { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -394,6 +494,22 @@
     <div class="header-divider"></div>
     <p class="header-tagline">Intelligence Reports &nbsp;·&nbsp; Research &nbsp;·&nbsp; Analysis</p>
   </header>
+
+  <!-- Downloads Widget -->
+  <div class="stats-bar">
+    <div class="downloads-widget">
+      <div class="widget-icon">⬇</div>
+      <div class="widget-body">
+        <div class="widget-count" id="dl-count">0</div>
+        <div class="widget-label">Total Downloads</div>
+      </div>
+      <div class="widget-divider"></div>
+      <div class="widget-sub">
+        <div class="widget-sub-item"><span>3</span>&nbsp; Reports Archived</div>
+        <div class="widget-sub-item"><span>Aug 2026</span>&nbsp; Latest Entry</div>
+      </div>
+    </div>
+  </div>
 
   <!-- Archive -->
   <main class="wrapper">
@@ -588,6 +704,37 @@
     }
 
     renderReports();
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       DOWNLOAD COUNTER — count-up animation to target
+       ══════════════════════════════════════════════════════════════════════════ */
+    (function () {
+      const TARGET   = 28000;
+      const DURATION = 2200;   // ms
+      const el       = document.getElementById('dl-count');
+
+      function easeOutExpo(t) {
+        return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+      }
+
+      function formatNum(n) {
+        return Math.floor(n).toLocaleString('en-US');
+      }
+
+      let start = null;
+
+      function step(ts) {
+        if (!start) start = ts;
+        const elapsed  = ts - start;
+        const progress = Math.min(elapsed / DURATION, 1);
+        el.textContent = formatNum(easeOutExpo(progress) * TARGET);
+        if (progress < 1) requestAnimationFrame(step);
+        else el.textContent = formatNum(TARGET);
+      }
+
+      // Delay slightly so page renders first
+      setTimeout(() => requestAnimationFrame(step), 400);
+    })();
   </script>
 </body>
 </html>
