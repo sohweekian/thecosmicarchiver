@@ -712,11 +712,13 @@
        BASE_OFFSET seeds the counter at 28,000 so real downloads add on top.
        ══════════════════════════════════════════════════════════════════════════ */
     const COUNTER = (function () {
-      const API      = 'https://api.countapi.xyz';
-      const NS       = 'thecosmicarchiver';
-      const KEY      = 'downloads';
-      const BASE     = 28000;
-      const el       = document.getElementById('dl-count');
+      /* counterapi.dev — free, no-auth hit counter (countapi.xyz successor) */
+      const API  = 'https://counterapi.dev/api';
+      const NS   = 'thecosmicarchiver';
+      const KEY  = 'downloads';
+      const BASE = 28000;   /* Display floor — real downloads add on top */
+      const el   = document.getElementById('dl-count');
+      const TIMEOUT_MS = 5000;
 
       function fmt(n) {
         return Math.round(n).toLocaleString('en-US');
@@ -726,12 +728,16 @@
         return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
       }
 
-      /* Animate the display from `from` to `to` over `dur` ms */
+      function currentDisplay() {
+        return parseInt((el ? el.textContent : '').replace(/,/g, '')) || BASE;
+      }
+
+      /* Animate display from `from` → `to` over `dur` ms */
       function animateTo(from, to, dur) {
-        let startTs = null;
+        let s = null;
         function step(ts) {
-          if (!startTs) startTs = ts;
-          const p = Math.min((ts - startTs) / dur, 1);
+          if (!s) s = ts;
+          const p = Math.min((ts - s) / dur, 1);
           if (el) el.textContent = fmt(from + easeOut(p) * (to - from));
           if (p < 1) requestAnimationFrame(step);
           else if (el) el.textContent = fmt(to);
@@ -739,41 +745,51 @@
         requestAnimationFrame(step);
       }
 
-      /* On page load — fetch current API value, animate from 0 to BASE+api */
-      async function load() {
-        try {
-          const r = await fetch(`${API}/get/${NS}/${KEY}`);
-          const d = await r.json();
-          const api = typeof d.value === 'number' ? d.value : 0;
-          animateTo(0, BASE + api, 2200);
-        } catch {
-          animateTo(0, BASE, 2200);
-        }
+      /* Fetch with hard timeout so we never block the page */
+      function timedFetch(url) {
+        return Promise.race([
+          fetch(url),
+          new Promise((_, rej) =>
+            setTimeout(() => rej(new Error('timeout')), TIMEOUT_MS))
+        ]);
       }
 
-      /* On download click — increment API, animate +1 on the display */
-      async function hit() {
+      /* On page load:
+         1. Animate immediately to BASE (page feels instant)
+         2. Fetch real API value in background; if higher, update smoothly */
+      async function load() {
+        animateTo(0, BASE, 2000);   /* instant — no waiting */
         try {
-          const r = await fetch(`${API}/hit/${NS}/${KEY}`);
+          const r = await timedFetch(`${API}/${NS}/get/${KEY}`);
           const d = await r.json();
           const api = typeof d.value === 'number' ? d.value : 0;
-          const newTotal = BASE + api;
-          /* Read current display value and tick up to new total */
-          const current = parseInt((el ? el.textContent : '').replace(/,/g, '')) || newTotal - 1;
-          animateTo(current, newTotal, 400);
-        } catch { /* API down — display unchanged, download still proceeds */ }
+          if (api > 0) animateTo(currentDisplay(), BASE + api, 600);
+        } catch { /* API unavailable — BASE count already showing, no action */ }
+      }
+
+      /* On download click — fire & forget increment, tick display */
+      async function hit() {
+        try {
+          const r = await timedFetch(`${API}/${NS}/hit/${KEY}`);
+          const d = await r.json();
+          const api = typeof d.value === 'number' ? d.value : 0;
+          if (api > 0) animateTo(currentDisplay(), BASE + api, 400);
+          else animateTo(currentDisplay(), currentDisplay() + 1, 400);
+        } catch {
+          /* Silently tick +1 on display even if API is down */
+          animateTo(currentDisplay(), currentDisplay() + 1, 400);
+        }
       }
 
       return { load, hit };
     })();
 
-    /* Attach click listeners to all tracked download buttons */
+    /* Attach click tracker to all download buttons */
     document.addEventListener('click', function (e) {
-      const btn = e.target.closest('.dl-tracked');
-      if (btn) COUNTER.hit();
+      if (e.target.closest('.dl-tracked')) COUNTER.hit();
     });
 
-    /* Init counter on load */
+    /* Init */
     setTimeout(() => COUNTER.load(), 350);
   </script>
 </body>
