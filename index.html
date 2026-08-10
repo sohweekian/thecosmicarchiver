@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Cosmic Archiver</title>
+  <meta name="description" content="An archive of intelligence reports on civilisation, technology, and the future.">
+  <style>
+    /* ── Reset & Base ────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-void:       #050a15;
+      --bg-card:       #0c1929;
+      --bg-card-hover: #11223a;
+      --accent-cyan:   #00b4d8;
+      --accent-purple: #7c3aed;
+      --accent-glow:   #00d4ff;
+      --text-primary:  #e4eaf2;
+      --text-muted:    #5a6a7e;
+      --text-dim:      #3a4a5e;
+      --border:        rgba(0, 180, 216, 0.18);
+      --border-hover:  rgba(0, 212, 255, 0.65);
+      --glow-shadow:   rgba(0, 180, 216, 0.14);
+      --glow-strong:   rgba(0, 212, 255, 0.28);
+      --tag-bg:        rgba(124, 58, 237, 0.18);
+      --tag-border:    rgba(124, 58, 237, 0.45);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg-void);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ── Starfield Canvas ────────────────────────────────────────────────────── */
+    #starfield {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Nebula gradient overlay ─────────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(124, 58, 237, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(0, 180, 216, 0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 40% at 60% 40%, rgba(0, 100, 180, 0.05) 0%, transparent 50%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ── Layout Wrapper ──────────────────────────────────────────────────────── */
+    .wrapper {
+      position: relative;
+      z-index: 2;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────────── */
+    header {
+      text-align: center;
+      padding: 80px 24px 56px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .header-star {
+      display: block;
+      font-size: 1.6rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.6em;
+      margin-bottom: 20px;
+      opacity: 0.7;
+      animation: pulse-stars 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse-stars {
+      0%, 100% { opacity: 0.7; }
+      50%       { opacity: 1.0; }
+    }
+
+    h1 {
+      font-family: 'Courier New', 'Courier', monospace;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+      text-shadow:
+        0 0 20px rgba(0, 212, 255, 0.55),
+        0 0 60px rgba(0, 180, 216, 0.2);
+      line-height: 1.1;
+      margin-bottom: 18px;
+    }
+
+    .header-divider {
+      width: 280px;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent,
+        var(--accent-cyan),
+        var(--accent-purple),
+        var(--accent-cyan),
+        transparent);
+      margin: 0 auto 18px;
+      opacity: 0.6;
+    }
+
+    .header-tagline {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-style: italic;
+    }
+
+    /* ── Section Label ───────────────────────────────────────────────────────── */
+    .section-label {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 8px 0 32px;
+    }
+
+    .section-label span {
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border), transparent);
+    }
+
+    /* ── Archive Grid ────────────────────────────────────────────────────────── */
+    #archive-grid {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+      gap: 20px;
+      padding-bottom: 80px;
+    }
+
+    @media (max-width: 560px) {
+      #archive-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Report Card ─────────────────────────────────────────────────────────── */
+    .report-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      cursor: default;
+      transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        background 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle corner accent */
+    .report-card::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 60px; height: 60px;
+      background: radial-gradient(circle at top right, rgba(0, 180, 216, 0.12), transparent 70%);
+      pointer-events: none;
+    }
+
+    .report-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-hover);
+      box-shadow: 0 8px 40px var(--glow-shadow), 0 0 0 1px rgba(0, 180, 216, 0.1);
+      background: var(--bg-card-hover);
+    }
+
+    /* Card top row */
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .card-icon {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(0, 180, 216, 0.15), rgba(124, 58, 237, 0.15));
+      border: 1px solid rgba(0, 180, 216, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .card-titles {
+      flex: 1;
+    }
+
+    .card-title {
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+      line-height: 1.3;
+      margin-bottom: 5px;
+    }
+
+    .card-subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Card meta row */
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(124, 58, 237, 0.9);
+      background: var(--tag-bg);
+      border: 1px solid var(--tag-border);
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+
+    .meta-sep {
+      color: var(--text-dim);
+      font-size: 0.7rem;
+    }
+
+    .meta-item {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .meta-item strong {
+      color: var(--accent-cyan);
+      font-weight: 400;
+    }
+
+    /* Card date */
+    .card-date {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+    }
+
+    .card-date span {
+      color: var(--text-muted);
+    }
+
+    /* Download button */
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: auto;
+      padding: 11px 20px;
+      background: linear-gradient(135deg,
+        rgba(0, 180, 216, 0.12),
+        rgba(124, 58, 237, 0.10));
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--accent-cyan);
+      font-size: 0.75rem;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-decoration: none;
+      transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        color 0.2s ease;
+    }
+
+    .download-btn:hover {
+      background: linear-gradient(135deg,
+        rgba(0, 180, 216, 0.22),
+        rgba(124, 58, 237, 0.18));
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(0, 212, 255, 0.2);
+      color: var(--accent-glow);
+    }
+
+    .download-btn svg {
+      flex-shrink: 0;
+    }
+
+    /* ── Empty State ─────────────────────────────────────────────────────────── */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 2;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 28px 24px;
+    }
+
+    .footer-text {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    /* ── Scroll fade-in ──────────────────────────────────────────────────────── */
+    .report-card {
+      opacity: 0;
+      transform: translateY(20px);
+      transition:
+        opacity 0.5s ease,
+        transform 0.5s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        background 0.25s ease;
+    }
+
+    .report-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .report-card.visible:hover {
+      transform: translateY(-4px);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Starfield -->
+  <canvas id="starfield"></canvas>
+
+  <!-- Header -->
+  <header>
+    <span class="header-star">✦ &nbsp; ✦ &nbsp; ✦</span>
+    <h1>The Cosmic Archiver</h1>
+    <div class="header-divider"></div>
+    <p class="header-tagline">Intelligence Reports &nbsp;·&nbsp; Research &nbsp;·&nbsp; Analysis</p>
+  </header>
+
+  <!-- Archive -->
+  <main class="wrapper">
+    <div class="section-label">
+      <span>Archive</span>
+    </div>
+    <div id="archive-grid"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p class="footer-text">The Cosmic Archiver &nbsp;·&nbsp; All rights reserved</p>
+  </footer>
+
+  <script>
+    /* ══════════════════════════════════════════════════════════════════════════
+       REPORT REGISTRY
+       To add a new report: append one object to this array.
+       No other changes required — the grid auto-renders.
+       ══════════════════════════════════════════════════════════════════════════ */
+    const REPORTS = [
+      {
+        id:          "R001",
+        title:       "Global Software Applications",
+        subtitle:    "Industry Analysis — Technology Sector",
+        date:        "2026-08-10",
+        dateDisplay: "10 August 2026",
+        file:        "pdfs/BlueLotus_GlobalSoftwareApplications_PhD_Thesis_Aug2026.pdf",
+        size:        "657 KB",
+        category:    "Technology",
+        icon:        "◈"
+      }
+      /* ── Add future reports here ──────────────────────────────────────────── */
+    ];
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       STARFIELD CANVAS ANIMATION
+       ══════════════════════════════════════════════════════════════════════════ */
+    (function () {
+      const canvas = document.getElementById('starfield');
+      const ctx    = canvas.getContext('2d');
+
+      let W, H, stars;
+      const N_STARS = 220;
+
+      function rand(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function createStar() {
+        return {
+          x:       rand(0, W),
+          y:       rand(0, H),
+          r:       rand(0.3, 1.6),
+          alpha:   rand(0.2, 0.85),
+          vx:      rand(-0.04, 0.04),
+          vy:      rand(-0.04, 0.04),
+          phase:   rand(0, Math.PI * 2),
+          speed:   rand(0.004, 0.012)
+        };
+      }
+
+      function init() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+        stars = Array.from({ length: N_STARS }, createStar);
+      }
+
+      function draw(ts) {
+        ctx.clearRect(0, 0, W, H);
+
+        for (const s of stars) {
+          /* Twinkle */
+          const a = s.alpha * (0.55 + 0.45 * Math.sin(s.phase + ts * s.speed));
+
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(190, 220, 255, ${a})`;
+          ctx.fill();
+
+          /* Drift */
+          s.x += s.vx;
+          s.y += s.vy;
+          if (s.x < 0)  s.x = W;
+          if (s.x > W)  s.x = 0;
+          if (s.y < 0)  s.y = H;
+          if (s.y > H)  s.y = 0;
+        }
+
+        requestAnimationFrame(draw);
+      }
+
+      init();
+      window.addEventListener('resize', init);
+      requestAnimationFrame(draw);
+    })();
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       RENDER ARCHIVE GRID
+       ══════════════════════════════════════════════════════════════════════════ */
+    function renderReports() {
+      const grid = document.getElementById('archive-grid');
+
+      if (!REPORTS.length) {
+        grid.innerHTML = '<p class="empty-state">No reports archived yet.</p>';
+        return;
+      }
+
+      /* Sort newest first */
+      const sorted = [...REPORTS].sort((a, b) => b.date.localeCompare(a.date));
+
+      sorted.forEach((r, i) => {
+        const card = document.createElement('article');
+        card.className = 'report-card';
+        card.style.transitionDelay = `${i * 80}ms`;
+
+        card.innerHTML = `
+          <div class="card-top">
+            <div class="card-icon">${r.icon || '◈'}</div>
+            <div class="card-titles">
+              <div class="card-title">${escHtml(r.title)}</div>
+              <div class="card-subtitle">${escHtml(r.subtitle)}</div>
+            </div>
+          </div>
+
+          <div class="card-meta">
+            <span class="tag">${escHtml(r.category)}</span>
+            <span class="meta-sep">·</span>
+            <span class="meta-item"><strong>${escHtml(r.size)}</strong></span>
+          </div>
+
+          <div class="card-date">
+            <span>Archived&nbsp;&nbsp;${escHtml(r.dateDisplay)}</span>
+          </div>
+
+          <a class="download-btn"
+             href="${escHtml(r.file)}"
+             download
+             title="Download ${escHtml(r.title)}">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" stroke-width="1.5"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Download Report
+          </a>
+        `;
+
+        grid.appendChild(card);
+      });
+
+      /* Fade-in on scroll (IntersectionObserver) */
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            e.target.classList.add('visible');
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.08 });
+
+      document.querySelectorAll('.report-card').forEach(c => io.observe(c));
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    renderReports();
+  </script>
+</body>
+</html>
