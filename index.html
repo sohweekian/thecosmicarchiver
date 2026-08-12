@@ -29,6 +29,84 @@
     /* ── Reset & Base ────────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ── Top Navigation ──────────────────────────────────────────────────────── */
+    .top-nav {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 28px;
+      border-bottom: 1px solid rgba(0, 180, 216, 0.10);
+      background: rgba(5, 10, 21, 0.70);
+      backdrop-filter: blur(12px);
+    }
+
+    .nav-brand {
+      font-family: 'Courier New', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .nav-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .nav-link:hover { color: var(--accent-cyan); }
+
+    .nav-link.canary {
+      color: rgba(240, 192, 96, 0.75);
+      border: 1px solid rgba(240, 192, 96, 0.25);
+      background: rgba(240, 192, 96, 0.05);
+      border-radius: 4px;
+      padding: 4px 10px;
+      transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .nav-link.canary:hover {
+      color: var(--accent-gold);
+      border-color: rgba(240, 192, 96, 0.55);
+      background: rgba(240, 192, 96, 0.09);
+      box-shadow: 0 0 12px rgba(240, 192, 96, 0.12);
+    }
+
+    .nav-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(240, 192, 96, 0.70);
+      animation: pulse-dot 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 0.70; transform: scale(1); }
+      50%       { opacity: 1.00; transform: scale(1.25); }
+    }
+
+    @media (max-width: 480px) {
+      .top-nav { padding: 10px 16px; }
+      .nav-brand { display: none; }
+    }
+
     :root {
       --bg-void:       #050a15;
       --bg-card:       #0c1929;
@@ -706,6 +784,21 @@
   <!-- Starfield -->
   <canvas id="starfield"></canvas>
 
+  <!-- Top Navigation -->
+  <nav class="top-nav">
+    <a href="#" class="nav-brand">The Cosmic Archiver</a>
+    <div class="nav-links">
+      <a href="https://sohweekian.github.io/bluelotus/canary-intelligence.html"
+         target="_blank" rel="noopener" class="nav-link canary">
+        <span class="nav-dot"></span>
+        Canary Intelligence Portal
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 8L8 2M8 2H4M8 2v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+  </nav>
+
   <!-- Back-to-top -->
   <button id="back-to-top" aria-label="Back to top" title="Back to top">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -765,6 +858,15 @@
   <!-- Footer -->
   <footer>
     <p class="footer-text">The Cosmic Archiver &nbsp;·&nbsp; All rights reserved &nbsp;·&nbsp; <span id="footer-year"></span></p>
+    <p style="margin-top:10px; font-size:0.63rem; letter-spacing:0.14em; text-transform:uppercase; color:rgba(240,192,96,0.45);">
+      <a href="https://sohweekian.github.io/bluelotus/canary-intelligence.html"
+         target="_blank" rel="noopener"
+         style="color:inherit; text-decoration:none; transition:color 0.2s;"
+         onmouseover="this.style.color='rgba(240,192,96,0.85)'"
+         onmouseout="this.style.color='rgba(240,192,96,0.45)'">
+        Canary Intelligence Portal &nbsp;→&nbsp; 108 Live Briefs
+      </a>
+    </p>
   </footer>
 
   <script>
