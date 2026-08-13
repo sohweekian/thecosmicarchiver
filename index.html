@@ -740,6 +740,18 @@
       .widget-divider, .widget-sub { display: none; }
     }
 
+    /* Mobile last-download pill — sits inside widget-body, always in flow */
+    .widget-last-dl {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+    .widget-last-dl.visible { display: flex; }
+
     /* ── Back-to-top button ──────────────────────────────────────────────────── */
     #back-to-top {
       position: fixed;
@@ -822,6 +834,9 @@
       <div class="widget-body">
         <div class="widget-count" id="dl-count">0</div>
         <div class="widget-label">Total Downloads</div>
+        <div class="widget-last-dl" id="widget-last-dl-mobile">
+          <span id="mobile-dl-flag"></span><span id="mobile-dl-country"></span>&nbsp;Last Download
+        </div>
       </div>
       <div class="widget-divider"></div>
       <div class="widget-sub">
@@ -1440,10 +1455,18 @@
       }
 
       function showCountry(flag, name) {
-        if (!rowEl || !flag || !name || name === 'Unknown') return;
+        if (!flag || !name || name === 'Unknown') return;
+        /* Desktop: widget-sub row */
+        if (rowEl)  { rowEl.style.display = ''; }
         if (flagEl)  flagEl.textContent  = flag;
         if (cntryEl) cntryEl.textContent = name;
-        rowEl.style.display = '';
+        /* Mobile: inline pill inside widget-body */
+        var mob = document.getElementById('widget-last-dl-mobile');
+        var mobFlag = document.getElementById('mobile-dl-flag');
+        var mobCtry = document.getElementById('mobile-dl-country');
+        if (mob)     { mob.classList.add('visible'); }
+        if (mobFlag) { mobFlag.textContent = flag + ' '; }
+        if (mobCtry) { mobCtry.textContent = name; }
       }
 
       /* Page load: show locally-cached count instantly, then fetch real count */
