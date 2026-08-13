@@ -827,6 +827,9 @@
       <div class="widget-sub">
         <div class="widget-sub-item"><span id="stat-count">—</span>&nbsp; Reports Archived</div>
         <div class="widget-sub-item"><span id="stat-latest">—</span>&nbsp; Latest Entry</div>
+        <div class="widget-sub-item" id="last-dl-row" style="display:none;">
+          <span id="last-dl-flag" style="font-size:1rem;margin-right:4px;"></span><span id="last-dl-country" style="color:rgba(0,180,216,0.85);font-weight:600;"></span>&nbsp; Last Download
+        </div>
       </div>
     </div>
   </div>
@@ -1142,6 +1145,28 @@
         category:    "Methodology",
         icon:        "⬡"
       }
+      {
+        id:          "R025",
+        title:       "Eli Lilly Due Diligence",
+        subtitle:    "Healthcare · Pharmaceuticals · August 2026",
+        date:        "2026-08-13",
+        dateDisplay: "13 August 2026",
+        file:        "pdfs/BlueLotus_EliLilly_DueDiligence_PhD_Aug2026.pdf",
+        size:        "462 KB",
+        category:    "Finance",
+        icon:        "◈"
+      },
+      {
+        id:          "R026",
+        title:       "Newmont Due Diligence",
+        subtitle:    "Mining · Gold · August 2026",
+        date:        "2026-08-13",
+        dateDisplay: "13 August 2026",
+        file:        "pdfs/BlueLotus_Newmont_DueDiligence_PhD_Aug2026.pdf",
+        size:        "474 KB",
+        category:    "Finance",
+        icon:        "⬡"
+      }
       /* ── Add future reports here ──────────────────────────────────────────── */
     ];
 
@@ -1382,26 +1407,27 @@
     renderReports();
 
     /* ══════════════════════════════════════════════════════════════════════════
-       LIVE DOWNLOAD COUNTER
-       Display = BASE_OFFSET + localCount (per-device) or CountAPI (shared),
-       whichever is higher. Animates on page-load and per-download click.
+       LIVE DOWNLOAD COUNTER — Cloudflare Workers + KV backend
+       All visitors share the same real counter stored server-side.
+       Country is detected server-side from the request IP (CF-IPCountry).
        ══════════════════════════════════════════════════════════════════════════ */
     const COUNTER = (function () {
-      const BASE   = 31237;
-      const LS_KEY = 'tca_dl_total';
-      const el     = document.getElementById('dl-count');
+      const WORKER  = 'https://cosmic-archiver-counter.sohweekian.workers.dev';
+      const BASE    = 31237;   /* fallback floor if Worker unreachable */
+      const LS_KEY  = 'tca_dl_count';
+      const el      = document.getElementById('dl-count');
+      const flagEl  = document.getElementById('last-dl-flag');
+      const cntryEl = document.getElementById('last-dl-country');
+      const rowEl   = document.getElementById('last-dl-row');
 
-      function fmt(n)       { return Math.round(n).toLocaleString('en-US'); }
-      function easeOut(t)   { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
-      function getLocal()   { return parseInt(localStorage.getItem(LS_KEY) || '0') || 0; }
-      function setLocal(n)  { try { localStorage.setItem(LS_KEY, n); } catch(e) {} }
-      function localTotal() { return BASE + getLocal(); }
+      function fmt(n)      { return Math.round(n).toLocaleString('en-US'); }
+      function easeOut(t)  { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
 
-      let displayed = 0;
+      let displayed = BASE;
 
       function animateTo(from, to, dur) {
         const TICK  = 16;
-        const steps = Math.ceil(dur / TICK);
+        const steps = Math.max(1, Math.ceil(dur / TICK));
         let   i     = 0;
         if (el) el.textContent = fmt(from);
         const timer = setInterval(function () {
@@ -1413,28 +1439,42 @@
         }, TICK);
       }
 
-      function load() {
-        const localVal = localTotal();
-        animateTo(0, localVal, 1800);
-
-        /* Try to get shared count from CountAPI — update display if higher */
-        fetch('https://counterapi.dev/api/thecosmicarchiver/get/downloads')
-          .then(r => r.json())
-          .then(data => {
-            const apiVal = BASE + (parseInt(data.value) || 0);
-            if (apiVal > localVal) {
-              /* Smooth top-up from current displayed value */
-              setTimeout(() => animateTo(localVal, apiVal, 1200), 100);
-            }
-          })
-          .catch(() => {});
+      function showCountry(flag, name) {
+        if (!rowEl || !flag || !name || name === 'Unknown') return;
+        if (flagEl)  flagEl.textContent  = flag;
+        if (cntryEl) cntryEl.textContent = name;
+        rowEl.style.display = '';
       }
 
+      /* Page load: show locally-cached count instantly, then fetch real count */
+      function load() {
+        const cached = parseInt(localStorage.getItem(LS_KEY) || String(BASE));
+        animateTo(0, cached, 1800);
+
+        fetch(WORKER + '/api/count')
+          .then(r => r.json())
+          .then(data => {
+            const real = data.count || BASE;
+            try { localStorage.setItem(LS_KEY, String(real)); } catch(e) {}
+            if (real !== cached) animateTo(cached, real, 1200);
+            showCountry(data.lastFlag, data.lastCountryName);
+          })
+          .catch(() => {});   /* graceful fallback — counter still shows cached */
+      }
+
+      /* Download click: fire POST to Worker, animate +1 */
       function hit() {
-        const prev = localTotal();
-        setLocal(getLocal() + 1);
+        const prev = displayed;
         animateTo(prev, prev + 1, 450);
-        fetch('https://counterapi.dev/api/thecosmicarchiver/hit/downloads')
+
+        fetch(WORKER + '/api/hit', { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            const real = data.count || prev + 1;
+            try { localStorage.setItem(LS_KEY, String(real)); } catch(e) {}
+            if (real !== prev + 1) animateTo(prev + 1, real, 600);
+            showCountry(data.lastFlag, data.lastCountryName);
+          })
           .catch(() => {});
       }
 
